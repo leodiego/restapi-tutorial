@@ -1,14 +1,15 @@
 package com.tutorial.restapi.controller;
 
 import com.tutorial.restapi.model.Person;
+import com.tutorial.restapi.repository.PersonRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping(value={"/api/person"})
@@ -16,8 +17,11 @@ public class PersonController {
 
     public static final String version = "1.0";
 
-    private ArrayList<Person> personArrayList = new ArrayList<>();
-    private Long id = 1L;
+    private PersonRepository personRepository;
+
+    public PersonController(PersonRepository personRepository) {
+        this.personRepository = personRepository;
+    }
 
 
     @GetMapping(value={"/version", "/version/"})
@@ -31,8 +35,9 @@ public class PersonController {
      * @return
      */
     @GetMapping(value={"/", ""})
-    public ResponseEntity<List<Person>> get() {
-        return ResponseEntity.ok(personArrayList);
+    public ResponseEntity<List<Person>> get()
+    {
+        return ResponseEntity.ok(personRepository.findAll());
     }
 
     /**
@@ -41,13 +46,14 @@ public class PersonController {
      * @return
      */
     @GetMapping(value={"/{id}"})
-    public ResponseEntity<Person> get(@PathVariable Long id) {
-        for (Person p : personArrayList) {
-            if (p.getId() == id) {
-                return ResponseEntity.ok(p);
-            }
+    public ResponseEntity<Person> get(@PathVariable Long id)
+    {
+        Optional<Person> person = personRepository.findById(id);
+        if (person.isPresent()) {
+            return ResponseEntity.ok(person.get());
         }
-        return ResponseEntity.notFound().build();
+//        return ResponseEntity.notFound().build();
+        return new ResponseEntity("Can't find person with id " + id + " not found", HttpStatus.NOT_FOUND);
     }
 
 
@@ -58,13 +64,12 @@ public class PersonController {
      */
     @PostMapping(value={"", "/"})
     public ResponseEntity<Person> create (@RequestBody Person person) {
-        person.setId(id++);
-        personArrayList.add(person);
+        Person p = personRepository.save(person);
 
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
-                .buildAndExpand(person.getId()).toUri();
-        return ResponseEntity.created(location).body(person);
+                .buildAndExpand(p.getId()).toUri();
+        return ResponseEntity.created(location).body(p);
     }
 
     /**
@@ -72,13 +77,13 @@ public class PersonController {
      * @param id
      */
     @DeleteMapping(value={"/{id}"})
-    public void delete (@PathVariable Long id) {
-        Iterator<Person> personIterator = personArrayList.iterator();
-        while (personIterator.hasNext()) {
-            if (personIterator.next().getId() == id) {
-                personIterator.remove();
-            }
+    public ResponseEntity<Person> delete (@PathVariable Long id) {
+        Optional<Person> p = personRepository.findById(id);
+        if (p.isPresent()) {
+            personRepository.deleteById(id);
+            return new ResponseEntity(p, HttpStatus.OK);
         }
+        return new ResponseEntity("Can't find person with id " + id, HttpStatus.NOT_FOUND);
     }
 
     /**
@@ -89,14 +94,12 @@ public class PersonController {
      */
     @PutMapping(value={"/{id}"})
     public void update (@PathVariable Long id, @RequestBody Person person) {
-        Iterator<Person> personIterator = personArrayList.iterator();
-        while (personIterator.hasNext()) {
-            Person p = personIterator.next();
-            if (p.getId() == id) {
-                p.setAge(person.getAge());
-                p.setName(person.getName());
-                break;
-            }
+
+        Optional<Person> p = personRepository.findById(id);
+        if (p.isPresent()) {
+            p.get().setName(person.getName());
+            p.get().setAge(person.getAge());
+            personRepository.save(p.get());
         }
     }
 

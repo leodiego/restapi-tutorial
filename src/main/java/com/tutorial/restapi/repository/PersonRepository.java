@@ -1,4 +1,7 @@
 package com.tutorial.restapi.repository;
 
-public class PersonRepository {
+import com.tutorial.restapi.model.Person;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface PersonRepository extends JpaRepository<Person, Long> {
 }
